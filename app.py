@@ -3,7 +3,6 @@ import requests
 import pandas as pd
 import altair as alt
 
-# Konfigurasi halaman
 st.set_page_config(page_title="Analisis TikTok", layout="wide")
 
 # --- Ambil daftar username dari endpoint ---
@@ -19,8 +18,21 @@ def get_usernames():
 
 usernames = get_usernames()
 
-# Input select
-author = st.selectbox("Pilih Username TikTok:", usernames, index=0 if usernames else None)
+# --- Pilih cara input ---
+mode = st.radio("Pilih sumber username:", ["Dari API", "Input Manual"])
+
+if mode == "Dari API":
+    author = st.multiselect(
+        "Cari atau pilih Username TikTok:",
+        usernames,
+        default=usernames[0] if usernames else None,
+        max_selections=1
+    )
+    author = author[0] if author else None
+else:
+    author = st.text_input("Masukkan Username TikTok manual:")
+
+st.write("👉 Username yang dipakai:", author)
 
 # --- Load data TikTok dari API ---
 @st.cache_data
@@ -64,22 +76,32 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(bar_day, use_container_width=True)
+       
 
         # 2. Scatter Plot Views vs Likes
         st.subheader("🔘 Scatter Plot: Views vs Likes")
         scatter = (
             alt.Chart(df)
-            .mark_circle(size=100, opacity=0.6)
+            .mark_circle(size=70    , opacity=0.6)
             .encode(
                 x="playCount:Q",
                 y="likeCount:Q",
                 color="day:N",
-                tooltip=["createTimeISO", "playCount", "likeCount", "commentCount", "shareCount", "engagement_rate"]
+                tooltip=["createTimeISO", "playCount", "likeCount", "commentCount", "shareCount", "engagement_rate"],
+                href="webVideoUrl:N" 
             )
             .properties(height=400)
             .interactive()
         )
+
         st.altair_chart(scatter, use_container_width=True)
+        st.markdown("""
+        **Interpretasi:**
+        - Setiap titik = 1 video.
+        - Pola cenderung naik: views tinggi → likes juga tinggi.
+        - Outlier bisa terlihat (views tinggi tapi likes rendah).
+        - Warna menunjukkan hari posting → bisa bandingkan performa antar hari.
+        """)
 
         # 3. Heatmap: rata-rata views per hari & jam
         st.subheader("🌡️ Heatmap: Rata-rata Views per Hari & Jam")
@@ -103,6 +125,12 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(heatmap, use_container_width=True)
+        st.markdown("""
+        **Interpretasi:**
+        - Warna lebih terang = rata-rata views lebih tinggi.
+        - Bisa identifikasi jam aktif audiens di tiap hari.
+        - Insight: pilih jam tertentu (misalnya sore/malam) di hari performa tinggi.
+        """)
 
         # 4. Rata-rata views per jam
         st.subheader("⏰ Rata-rata Views berdasarkan Jam Posting")
@@ -117,6 +145,12 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(bar_hour, use_container_width=True)
+        st.markdown("""
+        **Interpretasi:**
+        - Menunjukkan rata-rata views berdasarkan jam upload.
+        - Biasanya jam sore–malam lebih tinggi karena audiens lebih aktif.
+        - Insight: upload di jam "prime time" untuk hasil lebih optimal.
+        """)
 
         # 5. Engagement Rate per Hari
         st.subheader("📌 Engagement Rate Rata-rata per Hari")
@@ -139,6 +173,12 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(chart_eng_rate_day, use_container_width=True)
+        st.markdown("""
+        **Interpretasi:**
+        - Mengukur seberapa besar likes dibanding views di tiap hari.
+        - Hari dengan engagement tinggi cocok untuk eksperimen konten baru.
+        - Insight: walaupun views rendah, ER tinggi berarti audiens lebih loyal.
+        """)
 
         # 6. Engagement Rate per Jam
         st.subheader("⏰ Engagement Rate Rata-rata berdasarkan Jam Posting")
@@ -160,6 +200,11 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(chart_eng_rate_hour, use_container_width=True)
+        st.markdown("""
+        **Interpretasi:**
+        - Engagement rate per jam → kapan audiens paling responsif.
+        - Jam dengan ER tinggi cocok dipakai untuk posting konten penting.
+        """)
 
         # ================== ANALISIS TEKS ==================
         st.subheader("📑 Analisis Data")
