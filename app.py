@@ -37,7 +37,7 @@ st.write("👉 Username yang dipakai:", author)
 # --- Load data TikTok dari API ---
 @st.cache_data
 def load_data(author: str):
-    url = f"https:/api.ratcs.my.id:8443/api/tiktok/konten?author={author}"
+    url = f"https://api.ratcs.my.id:8443/api/tiktok/konten?author={author}"
     res = requests.get(url)
     res.raise_for_status()
     data = res.json()["data"]
