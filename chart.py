@@ -6,7 +6,7 @@ import altair as alt
 st.set_page_config(layout="wide", page_title="Chart Only")
 
 # Ambil data
-url = "http://31.97.107.27:5000/api/tiktok/konten?author=fitozlimofficial"
+url = "https://api.ratcs.my.id:8443/api/tiktok/konten?author=fitozlimofficial"
 res = requests.get(url)
 data = res.json()["data"]
 df = pd.DataFrame(data)
