@@ -95,14 +95,7 @@ if author:
         )
 
         st.altair_chart(scatter, use_container_width=True)
-        st.markdown("""
-        **Interpretasi:**
-        - Setiap titik = 1 video.
-        - Pola cenderung naik: views tinggi → likes juga tinggi.
-        - Outlier bisa terlihat (views tinggi tapi likes rendah).
-        - Warna menunjukkan hari posting → bisa bandingkan performa antar hari.
-        """)
-
+       
         # 3. Heatmap: rata-rata views per hari & jam
         st.subheader("🌡️ Heatmap: Rata-rata Views per Hari & Jam")
         heatmap_df = (
@@ -125,13 +118,7 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(heatmap, use_container_width=True)
-        st.markdown("""
-        **Interpretasi:**
-        - Warna lebih terang = rata-rata views lebih tinggi.
-        - Bisa identifikasi jam aktif audiens di tiap hari.
-        - Insight: pilih jam tertentu (misalnya sore/malam) di hari performa tinggi.
-        """)
-
+       
         # 4. Rata-rata views per jam
         st.subheader("⏰ Rata-rata Views berdasarkan Jam Posting")
         bar_hour = (
@@ -145,13 +132,7 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(bar_hour, use_container_width=True)
-        st.markdown("""
-        **Interpretasi:**
-        - Menunjukkan rata-rata views berdasarkan jam upload.
-        - Biasanya jam sore–malam lebih tinggi karena audiens lebih aktif.
-        - Insight: upload di jam "prime time" untuk hasil lebih optimal.
-        """)
-
+        
         # 5. Engagement Rate per Hari
         st.subheader("📌 Engagement Rate Rata-rata per Hari")
         eng_rate_day = (
@@ -173,12 +154,7 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(chart_eng_rate_day, use_container_width=True)
-        st.markdown("""
-        **Interpretasi:**
-        - Mengukur seberapa besar likes dibanding views di tiap hari.
-        - Hari dengan engagement tinggi cocok untuk eksperimen konten baru.
-        - Insight: walaupun views rendah, ER tinggi berarti audiens lebih loyal.
-        """)
+       
 
         # 6. Engagement Rate per Jam
         st.subheader("⏰ Engagement Rate Rata-rata berdasarkan Jam Posting")
@@ -200,11 +176,7 @@ if author:
             .properties(height=400)
         )
         st.altair_chart(chart_eng_rate_hour, use_container_width=True)
-        st.markdown("""
-        **Interpretasi:**
-        - Engagement rate per jam → kapan audiens paling responsif.
-        - Jam dengan ER tinggi cocok dipakai untuk posting konten penting.
-        """)
+        
 
         # ================== ANALISIS TEKS ==================
         st.subheader("📑 Analisis Data")
