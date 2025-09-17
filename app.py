@@ -49,12 +49,9 @@ def load_data(author: str):
     data = res.json()["data"]
     df = pd.DataFrame(data)
 
-    # Konversi waktu posting → UTC aware
-    df["createTimeISO"] = pd.to_datetime(df["createTimeISO"], utc=True)
+    df["createTimeISO"] = pd.to_datetime(df["createTimeISO"])
     df["hour"] = df["createTimeISO"].dt.hour
     df["day"] = df["createTimeISO"].dt.strftime("%A")
-
-    # Engagement rate (% likes per views)
     df["engagement_rate"] = (df["likeCount"] / df["playCount"]).fillna(0) * 100
     return df
 
@@ -64,148 +61,178 @@ if author:
 
         st.title(f"📊 Analisis Data TikTok: {author}")
 
-        with st.expander("📄 Lihat Data Sample"):
-            st.dataframe(df.head(200))
-
-        # --- Filter rentang waktu ---
-        st.sidebar.header("🔎 Filter Data")
-        range_option = st.sidebar.selectbox(
-            "Pilih Rentang Waktu",
-            ["Semua Data", "1 Minggu", "2 Minggu", "1 Bulan", "3 Bulan"],
-            index=0
+        # --- Filter Waktu ---
+        st.subheader("📅 Filter Rentang Waktu")
+        range_option = st.selectbox(
+            "Pilih rentang waktu:",
+            ["1 Minggu", "2 Minggu", "1 Bulan", "3 Bulan", "Semua Data"]
         )
 
         today = df["createTimeISO"].max()
+        if range_option == "1 Minggu":
+            start_date = today - pd.Timedelta(weeks=1)
+        elif range_option == "2 Minggu":
+            start_date = today - pd.Timedelta(weeks=2)
+        elif range_option == "1 Bulan":
+            start_date = today - pd.DateOffset(months=1)
+        elif range_option == "3 Bulan":
+            start_date = today - pd.DateOffset(months=3)
+        else:
+            start_date = df["createTimeISO"].min()
 
-        def get_start_date(option, today):
-            if option == "1 Minggu":
-                return today - pd.Timedelta(weeks=1)
-            elif option == "2 Minggu":
-                return today - pd.Timedelta(weeks=2)
-            elif option == "1 Bulan":
-                return today - pd.DateOffset(months=1)
-            elif option == "3 Bulan":
-                return today - pd.DateOffset(months=3)
-            return df["createTimeISO"].min()
-
-        start_date = pd.to_datetime(get_start_date(range_option, today), utc=True)
         df_filtered = df[df["createTimeISO"] >= start_date]
 
-        st.success(f"📅 Data difilter dari **{start_date.date()}** sampai **{today.date()}**")
+        with st.expander("📄 Lihat Data Sample"):
+            st.dataframe(df_filtered.head(200))
 
         # ================== ANALISIS & CHARTS ==================
         day_order = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
 
         # 1. Rata-rata Views per Hari
-        if st.checkbox("Tampilkan 📊 Rata-rata Views per Hari", value=True):
-            st.subheader("📊 Rata-rata Views per Hari")
-            bar_day = (
-                alt.Chart(df_filtered)
-                .mark_bar()
-                .encode(
-                    x=alt.X("day:N", sort=day_order, title="Hari"),
-                    y=alt.Y("mean(playCount):Q", title="Rata-rata Views"),
-                    tooltip=["day", "mean(playCount)"]
-                )
-                .properties(height=400)
+        st.subheader("📊 Rata-rata Views per Hari")
+        bar_day = (
+            alt.Chart(df_filtered)
+            .mark_bar()
+            .encode(
+                x=alt.X("day:N", sort=day_order, title="Hari"),
+                y=alt.Y("mean(playCount):Q", title="Rata-rata Views"),
+                tooltip=["day", "mean(playCount)"]
             )
-            st.altair_chart(bar_day, use_container_width=True)
+            .properties(height=400)
+        )
+        st.altair_chart(bar_day, use_container_width=True)
 
         # 2. Scatter Plot Views vs Likes
-        if st.checkbox("Tampilkan 🔘 Scatter Plot: Views vs Likes", value=True):
-            st.subheader("🔘 Scatter Plot: Views vs Likes")
-            scatter = (
-                alt.Chart(df_filtered)
-                .mark_circle(size=70, opacity=0.6)
-                .encode(
-                    x=alt.X("playCount:Q", title="Jumlah Views"),
-                    y=alt.Y("likeCount:Q", title="Jumlah Likes"),
-                    color=alt.Color("day:N", title="Hari"),
-                    tooltip=[
-                        "createTimeISO",
-                        "playCount",
-                        "likeCount",
-                        "commentCount",
-                        "shareCount",
-                        "engagement_rate"
-                    ],
-                    href="webVideoUrl:N"
-                )
-                .properties(height=400)
-                .interactive()
+        st.subheader("🔘 Scatter Plot: Views vs Likes")
+        scatter = (
+            alt.Chart(df_filtered)
+            .mark_circle(size=70, opacity=0.6)
+            .encode(
+                x=alt.X("playCount:Q", title="Jumlah Views"),
+                y=alt.Y("likeCount:Q", title="Jumlah Likes"),
+                color=alt.Color("day:N", title="Hari"),
+                tooltip=["createTimeISO", "playCount", "likeCount", "commentCount", "shareCount", "engagement_rate"],
+                href="webVideoUrl:N"
             )
-            st.altair_chart(scatter, use_container_width=True)
+            .properties(height=400)
+            .interactive()
+        )
+        st.altair_chart(scatter, use_container_width=True)
 
-        # 3. Heatmap
-        if st.checkbox("Tampilkan 🌡️ Heatmap: Views per Hari & Jam", value=True):
-            st.subheader("🌡️ Heatmap: Rata-rata Views per Hari & Jam")
-            heatmap_df = df_filtered.groupby(["day", "hour"])["playCount"].mean().reset_index()
-            heatmap_df["day"] = pd.Categorical(heatmap_df["day"], categories=day_order, ordered=True)
+        # 3. Heatmap Views per Hari & Jam
+        st.subheader("🌡️ Heatmap: Rata-rata Views per Hari & Jam")
+        heatmap_df = df_filtered.groupby(["day", "hour"])["playCount"].mean().reset_index()
+        heatmap_df["day"] = pd.Categorical(heatmap_df["day"], categories=day_order, ordered=True)
 
-            heatmap = (
-                alt.Chart(heatmap_df)
-                .mark_rect()
-                .encode(
-                    x=alt.X("hour:O", title="Jam"),
-                    y=alt.Y("day:O", title="Hari"),
-                    color=alt.Color("playCount:Q", scale=alt.Scale(scheme="greenblue"), title="Rata-rata Views"),
-                    tooltip=["day", "hour", "playCount"]
-                )
-                .properties(height=400)
+        heatmap = (
+            alt.Chart(heatmap_df)
+            .mark_rect()
+            .encode(
+                x=alt.X("hour:O", title="Jam"),
+                y=alt.Y("day:O", title="Hari"),
+                color=alt.Color("playCount:Q", scale=alt.Scale(scheme="greenblue"), title="Rata-rata Views"),
+                tooltip=["day", "hour", "playCount"]
             )
-            st.altair_chart(heatmap, use_container_width=True)
+            .properties(height=400)
+        )
+        st.altair_chart(heatmap, use_container_width=True)
 
         # 4. Rata-rata Views per Jam
-        if st.checkbox("Tampilkan ⏰ Rata-rata Views per Jam", value=True):
-            st.subheader("⏰ Rata-rata Views berdasarkan Jam Posting")
-            bar_hour = (
-                alt.Chart(df_filtered)
-                .mark_bar()
-                .encode(
-                    x=alt.X("hour:O", title="Jam"),
-                    y=alt.Y("mean(playCount):Q", title="Rata-rata Views"),
-                    tooltip=["hour", "mean(playCount)"]
-                )
-                .properties(height=400)
+        st.subheader("⏰ Rata-rata Views berdasarkan Jam Posting")
+        bar_hour = (
+            alt.Chart(df_filtered)
+            .mark_bar()
+            .encode(
+                x=alt.X("hour:O", title="Jam"),
+                y=alt.Y("mean(playCount):Q", title="Rata-rata Views"),
+                tooltip=["hour", "mean(playCount)"]
             )
-            st.altair_chart(bar_hour, use_container_width=True)
+            .properties(height=400)
+        )
+        st.altair_chart(bar_hour, use_container_width=True)
+
+        # 4b. Jumlah Konten per Jam
+        st.subheader("📦 Jumlah Konten per Jam Posting")
+        count_hour = df_filtered.groupby("hour")["webVideoUrl"].count().reset_index().rename(columns={"webVideoUrl": "jumlah_konten"})
+        chart_count_hour = (
+            alt.Chart(count_hour)
+            .mark_bar()
+            .encode(
+                x=alt.X("hour:O", title="Jam"),
+                y=alt.Y("jumlah_konten:Q", title="Jumlah Konten"),
+                tooltip=["hour", "jumlah_konten"]
+            )
+            .properties(height=400)
+        )
+        st.altair_chart(chart_count_hour, use_container_width=True)
+
+        # 📦 Jumlah Konten per Hari
+        st.subheader("📦 Jumlah Konten per Hari Posting")
+        count_day = df_filtered.groupby("day")["webVideoUrl"].count().reset_index().rename(columns={"webVideoUrl": "jumlah_konten"})
+        count_day["day"] = pd.Categorical(count_day["day"], categories=day_order, ordered=True)
+        chart_count_day = (
+            alt.Chart(count_day)
+            .mark_bar()
+            .encode(
+                x=alt.X("day:N", sort=day_order, title="Hari"),
+                y=alt.Y("jumlah_konten:Q", title="Jumlah Konten"),
+                tooltip=["day", "jumlah_konten"]
+            )
+            .properties(height=400)
+        )
+        st.altair_chart(chart_count_day, use_container_width=True)
 
         # 5. Engagement Rate per Hari
-        if st.checkbox("Tampilkan 📌 Engagement Rate per Hari", value=True):
-            st.subheader("📌 Engagement Rate Rata-rata per Hari")
-            eng_rate_day = df_filtered.groupby("day")["engagement_rate"].mean().reset_index()
-            eng_rate_day["day"] = pd.Categorical(eng_rate_day["day"], categories=day_order, ordered=True)
-
-            chart_eng_rate_day = (
-                alt.Chart(eng_rate_day)
-                .mark_bar()
-                .encode(
-                    x=alt.X("day:N", sort=day_order, title="Hari"),
-                    y=alt.Y("engagement_rate:Q", title="Engagement Rate (%)"),
-                    color=alt.Color("engagement_rate:Q", scale=alt.Scale(scheme="redyellowgreen")),
-                    tooltip=["day", "engagement_rate"]
-                )
-                .properties(height=400)
+        st.subheader("📌 Engagement Rate Rata-rata per Hari")
+        eng_rate_day = df_filtered.groupby("day")["engagement_rate"].mean().reset_index()
+        eng_rate_day["day"] = pd.Categorical(eng_rate_day["day"], categories=day_order, ordered=True)
+        chart_eng_rate_day = (
+            alt.Chart(eng_rate_day)
+            .mark_bar()
+            .encode(
+                x=alt.X("day:N", sort=day_order, title="Hari"),
+                y=alt.Y("engagement_rate:Q", title="Engagement Rate (%)"),
+                color=alt.Color("engagement_rate:Q", scale=alt.Scale(scheme="redyellowgreen")),
+                tooltip=["day", "engagement_rate"]
             )
-            st.altair_chart(chart_eng_rate_day, use_container_width=True)
+            .properties(height=400)
+        )
+        st.altair_chart(chart_eng_rate_day, use_container_width=True)
 
         # 6. Engagement Rate per Jam
-        if st.checkbox("Tampilkan ⏰ Engagement Rate per Jam", value=True):
-            st.subheader("⏰ Engagement Rate Rata-rata berdasarkan Jam Posting")
-            eng_rate_hour = df_filtered.groupby("hour")["engagement_rate"].mean().reset_index()
-
-            chart_eng_rate_hour = (
-                alt.Chart(eng_rate_hour)
-                .mark_bar()
-                .encode(
-                    x=alt.X("hour:O", title="Jam"),
-                    y=alt.Y("engagement_rate:Q", title="Engagement Rate (%)"),
-                    color=alt.Color("engagement_rate:Q", scale=alt.Scale(scheme="redyellowgreen")),
-                    tooltip=["hour", "engagement_rate"]
-                )
-                .properties(height=400)
+        st.subheader("⏰ Engagement Rate Rata-rata berdasarkan Jam Posting")
+        eng_rate_hour = df_filtered.groupby("hour")["engagement_rate"].mean().reset_index()
+        chart_eng_rate_hour = (
+            alt.Chart(eng_rate_hour)
+            .mark_bar()
+            .encode(
+                x=alt.X("hour:O", title="Jam"),
+                y=alt.Y("engagement_rate:Q", title="Engagement Rate (%)"),
+                color=alt.Color("engagement_rate:Q", scale=alt.Scale(scheme="redyellowgreen")),
+                tooltip=["hour", "engagement_rate"]
             )
-            st.altair_chart(chart_eng_rate_hour, use_container_width=True)
+            .properties(height=400)
+        )
+        st.altair_chart(chart_eng_rate_hour, use_container_width=True)
+
+        # ================== ANALISIS TEKS ==================
+        st.subheader("📑 Analisis Data")
+
+        correlation = df_filtered["playCount"].corr(df_filtered["likeCount"])
+        st.write(f"🔗 **Korelasi antara Views dan Likes:** {correlation:.2f}")
+
+        st.write("🔥 **Rata-rata Engagement Rate per Hari (%):**")
+        st.dataframe(eng_rate_day.sort_values("engagement_rate", ascending=False))
+
+        high_views = df_filtered[df_filtered["playCount"] > df_filtered["playCount"].quantile(0.9)]
+        if not high_views.empty:
+            st.write("🚀 **Konten dengan Views tinggi (Top 10%):**")
+            st.dataframe(high_views[["createTimeISO", "playCount", "likeCount", "engagement_rate", "webVideoUrl"]])
+
+        low_eng = df_filtered[df_filtered["engagement_rate"] < df_filtered["engagement_rate"].quantile(0.1)]
+        if not low_eng.empty:
+            st.write("⚠️ **Konten dengan Engagement Rendah (Bottom 10%):**")
+            st.dataframe(low_eng[["createTimeISO", "playCount", "likeCount", "engagement_rate", "webVideoUrl"]])
 
     except Exception as e:
         st.error(f"Gagal memuat data untuk username '{author}': {e}")
