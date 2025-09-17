@@ -58,11 +58,65 @@ if author:
         df = load_data(author)
 
         st.title(f"📊 Analisis Data TikTok: {author}")
+        
+         # --- Filter Waktu ---
+        st.subheader("📅 Filter Rentang Waktu")
+        range_option = st.selectbox(
+            "Pilih rentang waktu:",
+            ["1 Minggu", "2 Minggu", "1 Bulan", "3 Bulan", "Semua Data"]
+        )
+
+        today = df["createTimeISO"].max()
+        if range_option == "1 Minggu":
+            start_date = today - pd.Timedelta(weeks=1)
+        elif range_option == "2 Minggu":
+            start_date = today - pd.Timedelta(weeks=2)
+        elif range_option == "1 Bulan":
+            start_date = today - pd.DateOffset(months=1)
+        elif range_option == "3 Bulan":
+            start_date = today - pd.DateOffset(months=3)
+        else:
+            start_date = df["createTimeISO"].min()
+
+        df_filtered = df[df["createTimeISO"] >= start_date]
 
         with st.expander("📄 Lihat Data Sample"):
             st.dataframe(df.head(200))
 
         # ================== ANALISIS & CHARTS ==================
+        
+        
+        # 4b. Jumlah Konten per Jam
+        st.subheader("📦 Jumlah Konten per Jam Posting")
+        count_hour = df_filtered.groupby("hour")["webVideoUrl"].count().reset_index().rename(columns={"webVideoUrl": "jumlah_konten"})
+        chart_count_hour = (
+            alt.Chart(count_hour)
+            .mark_bar()
+            .encode(
+                x=alt.X("hour:O", title="Jam"),
+                y=alt.Y("jumlah_konten:Q", title="Jumlah Konten"),
+                tooltip=["hour", "jumlah_konten"]
+            )
+            .properties(height=400)
+        )
+        st.altair_chart(chart_count_hour, use_container_width=True)
+
+        # 📦 Jumlah Konten per Hari
+        st.subheader("📦 Jumlah Konten per Hari Posting")
+        count_day = df_filtered.groupby("day")["webVideoUrl"].count().reset_index().rename(columns={"webVideoUrl": "jumlah_konten"})
+        count_day["day"] = pd.Categorical(count_day["day"], categories=day_order, ordered=True)
+        chart_count_day = (
+            alt.Chart(count_day)
+            .mark_bar()
+            .encode(
+                x=alt.X("day:N", sort=day_order, title="Hari"),
+                y=alt.Y("jumlah_konten:Q", title="Jumlah Konten"),
+                tooltip=["day", "jumlah_konten"]
+            )
+            .properties(height=400)
+        )
+        st.altair_chart(chart_count_day, use_container_width=True)
+        
         # 1. Rata-rata Views per Hari
         st.subheader("📊 Rata-rata Views per Hari")
         bar_day = (
