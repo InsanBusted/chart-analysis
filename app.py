@@ -6,11 +6,6 @@ import locale
 
 st.set_page_config(page_title="Analisis TikTok", layout="wide")
 
-# --- Atur locale ke Bahasa Indonesia ---
-try:
-    locale.setlocale(locale.LC_TIME, "id_ID.UTF-8")
-except:
-    locale.setlocale(locale.LC_TIME, "")
 
 # --- Ambil daftar username dari endpoint ---
 @st.cache_data
